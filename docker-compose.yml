@@ -1,0 +1,44 @@
+# Aeolus: self-hosted weather service.
+#
+#   1. cp .env.example .env      # then edit .env for your location
+#   2. docker compose up -d --build
+#   3. open http://localhost:8080
+#
+# Data (SQLite DB, radar tile cache, optional basemap) lives in the named
+# volume `aeolus-data`, owned by the image's non-root uid 10001. A named volume
+# inherits that ownership automatically; a host bind mount would not (SQLite
+# could not open the DB), which is why this uses a volume.
+
+services:
+  aeolus:
+    build: .
+    image: aeolus
+    container_name: aeolus
+    restart: unless-stopped
+    ports:
+      - "${PORT:-8080}:8080"
+    # .env is optional: without it the stack runs the example location on 8080.
+    # `required: false` needs Docker Compose v2.24+ (recent Docker Desktop). On
+    # older Compose, remove the two lines below and use `env_file: .env` after
+    # `cp .env.example .env`.
+    env_file:
+      - path: .env
+        required: false
+    environment:
+      # Pin storage to the volume no matter what .env says. The DB_PATH in
+      # .env.example (./data/aeolus.db) is for running outside Docker.
+      DB_PATH: /data/aeolus.db
+    volumes:
+      - aeolus-data:/data
+    # python urllib, not curl: the image is python:3.12-slim (no curl/wget).
+    # Timeout is generous enough for a SQLite busy wait.
+    healthcheck:
+      test: ["CMD", "python3", "-c",
+             "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8080/healthz', timeout=10)"]
+      interval: 30s
+      timeout: 15s
+      retries: 3
+      start_period: 20s
+
+volumes:
+  aeolus-data:

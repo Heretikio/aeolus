@@ -1,0 +1,142 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="color-scheme" content="light dark">
+<meta name="theme-color" media="(prefers-color-scheme: light)" content="#f4f6f8">
+<meta name="theme-color" media="(prefers-color-scheme: dark)" content="#0c0e12">
+<meta name="description" content="Aeolus: self-hosted weather. Forecast, nowcast, radar and NWS alerts for your location.">
+<title>Aeolus</title>
+<link rel="manifest" href="/manifest.json">
+<link rel="icon" href="/static/icons/aeolus.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="/static/icons/apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Aeolus">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<link rel="stylesheet" href="/static/vendor/maplibre-gl.css">
+<link rel="stylesheet" href="/static/app.css">
+</head>
+<body>
+
+<header class="topbar">
+  <div class="brand" aria-label="Aeolus">
+    <svg class="brand-glyph" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+         stroke-width="1.8" stroke-linecap="round" aria-hidden="true">
+      <path d="M3 7.5h8.8a2.1 2.1 0 1 0-2.1-2.1"/>
+      <path d="M3 11.5h13.8a2.5 2.5 0 1 0-2.5-2.5"/>
+      <path d="M3 15.5h10.8a2.1 2.1 0 1 1-2.1 2.1"/>
+    </svg>
+    <span class="brand-name">Aeolus</span>
+  </div>
+  <label class="locpick">
+    <span class="visually-hidden">Location</span>
+    <select id="locSelect" aria-label="Location"><option>Home</option></select>
+  </label>
+</header>
+
+<main id="main">
+
+  <section id="view-now" class="view" aria-labelledby="tab-now">
+    <div id="nowAlertBanner"></div>
+    <div id="nowBurn"></div>
+    <div id="nowHero" class="hero">
+      <p class="placeholder">Loading current conditions&hellip;</p>
+    </div>
+    <div class="panel">
+      <h2 class="eyebrow">Next hour</h2>
+      <div id="nowcastStrip" class="nowcast"></div>
+      <p id="nowcastSummary" class="nowcast-summary"></p>
+    </div>
+    <p id="updated-now" class="updated"></p>
+  </section>
+
+  <section id="view-hourly" class="view" hidden aria-labelledby="tab-hourly">
+    <h2 class="eyebrow">Next 48 hours</h2>
+    <div id="hourlyChartWrap" class="chart-scroll">
+      <p class="placeholder">Loading hourly forecast&hellip;</p>
+    </div>
+    <div id="hourlyTable"></div>
+    <p id="updated-hourly" class="updated"></p>
+  </section>
+
+  <section id="view-daily" class="view" hidden aria-labelledby="tab-daily">
+    <h2 class="eyebrow">Next 10 days</h2>
+    <div id="dailyList" class="daily">
+      <p class="placeholder">Loading daily forecast&hellip;</p>
+    </div>
+    <p id="updated-daily" class="updated"></p>
+  </section>
+
+  <section id="view-radar" class="view view-radar" hidden aria-labelledby="tab-radar">
+    <div id="radarMap" class="radar-map" role="application" aria-label="Radar map"></div>
+    <p class="radar-attrib">Radar: Iowa Environmental Mesonet / NOAA &middot; &copy; OpenStreetMap &middot; Protomaps</p>
+    <div class="radar-bar">
+      <button type="button" id="radarPlay" class="radar-play" aria-label="Pause"></button>
+      <input id="radarScrub" type="range" min="0" max="0" step="1" value="0"
+             aria-label="Radar frame" disabled>
+      <span id="radarTime" class="radar-time">Loading radar&hellip;</span>
+    </div>
+  </section>
+
+  <section id="view-alerts" class="view" hidden aria-labelledby="tab-alerts">
+    <h2 class="eyebrow">Alerts</h2>
+    <div id="alertsList">
+      <p class="placeholder">Loading alerts&hellip;</p>
+    </div>
+    <p id="updated-alerts" class="updated"></p>
+  </section>
+
+  <footer class="attribution">
+    <p>Forecast: Open-Meteo (CC-BY 4.0). Alerts: NWS. This is convenience-grade;
+    NOAA weather radio and WEA are the life-safety backstop.</p>
+  </footer>
+</main>
+
+<nav class="tabbar" aria-label="Views">
+  <a id="tab-now" href="#/now" class="tab" aria-current="page">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"
+         stroke-linecap="round" aria-hidden="true">
+      <circle cx="12" cy="12" r="4.2"/>
+      <path d="M12 3v2.2M12 18.8V21M3 12h2.2M18.8 12H21M5.6 5.6l1.6 1.6M16.8 16.8l1.6 1.6M18.4 5.6l-1.6 1.6M7.2 16.8l-1.6 1.6"/>
+    </svg><span>Now</span>
+  </a>
+  <a id="tab-hourly" href="#/hourly" class="tab">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"
+         stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+      <path d="M3 17l5-6 4 3 6-8"/><path d="M3 21h18"/>
+    </svg><span>Hourly</span>
+  </a>
+  <a id="tab-daily" href="#/daily" class="tab">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"
+         stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+      <rect x="3.5" y="5" width="17" height="15.5" rx="2.5"/>
+      <path d="M3.5 9.5h17M8 3v3.4M16 3v3.4"/>
+    </svg><span>Daily</span>
+  </a>
+  <a id="tab-radar" href="#/radar" class="tab">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"
+         stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+      <path d="M20.5 12a8.5 8.5 0 1 1-2.6-6.1"/>
+      <path d="M16.3 12a4.3 4.3 0 1 1-1.3-3.1"/>
+      <path d="M12 12l5.9-5.9"/>
+      <circle cx="12" cy="12" r="0.4"/>
+    </svg><span>Radar</span>
+  </a>
+  <a id="tab-alerts" href="#/alerts" class="tab">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"
+         stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+      <path d="M12 4a6 6 0 0 0-6 6v3.2L4.6 16.4a.8.8 0 0 0 .7 1.2h13.4a.8.8 0 0 0 .7-1.2L18 13.2V10a6 6 0 0 0-6-6z"/>
+      <path d="M10 20a2.2 2.2 0 0 0 4 0"/>
+    </svg><span>Alerts</span>
+    <span id="alertDot" class="alert-dot" hidden aria-label="Active alerts"></span>
+  </a>
+</nav>
+
+<script src="/static/charts.js"></script>
+<script src="/static/vendor/maplibre-gl.js"></script>
+<script src="/static/vendor/pmtiles.js"></script>
+<script src="/static/radar.js"></script>
+<script src="/static/app.js"></script>
+</body>
+</html>

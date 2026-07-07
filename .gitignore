@@ -1,0 +1,14 @@
+data/
+*.db
+*.db-wal
+*.db-shm
+.env
+*.pmtiles
+radar/
+__pycache__/
+*.pyc
+venv/
+.venv/
+.pytest_cache/
+.ruff_cache/
+.DS_Store

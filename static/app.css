@@ -1,0 +1,566 @@
+/* Aeolus PWA. Phone-first, wall-display friendly. No frameworks, no external
+   fonts; system sans only. Dark and light follow prefers-color-scheme.
+   Chart marks take their color from the tokens below via SVG classes, so a
+   theme flip restyles every chart without re-rendering. */
+
+:root {
+  --page: #f4f6f8;
+  --surface: #fbfcfd;
+  --ink: #131a22;
+  --ink-2: #4d5866;
+  --muted: #7c8794;
+  --grid: #e4e8ed;
+  --baseline: #c6cdd6;
+  --hairline: rgba(19, 26, 34, 0.10);
+  --temp: #c97a00;          /* prairie amber, validated on light surface */
+  --rain: #2a78d6;          /* rain blue, validated on light surface */
+  --rain-wash: rgba(42, 120, 214, 0.10);
+  --rain-bar: rgba(42, 120, 214, 0.18);  /* hourly table data bar tint */
+  --stale: #8a5c00;         /* text-safe amber for the staleness line */
+  /* hourly temp gradient, hot to cold (validated on light surface) */
+  --t-hot2: #b32424; --t-hot: #d03b3b; --t-warm: #d9a400;
+  --t-mild: #3e9142; --t-cool: #2a78d6; --t-cold: #1c4a9e;
+  /* wind burn-safety gradient, calm green to red-flag red, plus the gust
+     envelope and the wind cell's data bar tint (caution amber) */
+  --w-safe: #3e9142; --w-caution: #d9a400; --w-warn: #cf6912;
+  --w-danger: #d03b3b; --w-danger2: #8f1d1d;
+  --gust-band: rgba(201, 122, 0, 0.10);
+  --wind-bar: rgba(201, 122, 0, 0.16);
+  /* NWS severity: text-safe ink + wash + raw edge color per tier */
+  --sev-extreme: #b32424;   --sev-extreme-edge: #d03b3b;  --sev-extreme-wash: rgba(208, 59, 59, 0.12);
+  --sev-severe:  #a84f10;   --sev-severe-edge:  #ec835a;  --sev-severe-wash:  rgba(236, 131, 90, 0.14);
+  --sev-moderate:#8a5c00;   --sev-moderate-edge:#fab219;  --sev-moderate-wash:rgba(250, 178, 25, 0.16);
+  --sev-minor:   #51606f;   --sev-minor-edge:   #8fa0b0;  --sev-minor-wash:   rgba(143, 160, 176, 0.16);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --page: #0c0e12;
+    --surface: #14171c;
+    --ink: #eef2f6;
+    --ink-2: #b8bfc9;
+    --muted: #848b95;
+    --grid: #262b33;
+    --baseline: #3a4048;
+    --hairline: rgba(238, 242, 246, 0.10);
+    --temp: #c98500;        /* validated on dark surface */
+    --rain: #4a90e8;        /* validated on dark surface */
+    --rain-wash: rgba(74, 144, 232, 0.14);
+    --rain-bar: rgba(74, 144, 232, 0.20);
+    --stale: #e0aa3e;
+    --t-hot2: #e05252; --t-hot: #ef6b6b; --t-warm: #e3bb3f;
+    --t-mild: #57b45e; --t-cool: #4a90e8; --t-cold: #5b7ce8;
+    --w-safe: #57b45e; --w-caution: #e3bb3f; --w-warn: #ef9046;
+    --w-danger: #ef6b6b; --w-danger2: #c73434;
+    --gust-band: rgba(224, 170, 62, 0.12);
+    --wind-bar: rgba(224, 170, 62, 0.20);
+    --sev-extreme: #ef6b6b; --sev-extreme-wash: rgba(208, 59, 59, 0.18);
+    --sev-severe:  #f0956d; --sev-severe-wash:  rgba(236, 131, 90, 0.16);
+    --sev-moderate:#e5b04d; --sev-moderate-wash:rgba(250, 178, 25, 0.14);
+    --sev-minor:   #9caebe; --sev-minor-wash:   rgba(143, 160, 176, 0.14);
+  }
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+html { -webkit-text-size-adjust: 100%; }
+/* Wall display: same layout, bigger type */
+@media (min-width: 1100px) { html { font-size: 19px; } }
+
+body {
+  font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+  background: var(--page);
+  color: var(--ink);
+  line-height: 1.45;
+  min-height: 100dvh;
+}
+
+.visually-hidden {
+  position: absolute; width: 1px; height: 1px; overflow: hidden;
+  clip: rect(0 0 0 0); white-space: nowrap;
+}
+
+/* ---- header ---- */
+
+.topbar {
+  position: sticky; top: 0; z-index: 10;
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 0.75rem;
+  max-width: 40rem; margin: 0 auto;
+  padding: calc(0.6rem + env(safe-area-inset-top)) 1rem 0.6rem;
+  background: color-mix(in srgb, var(--page) 88%, transparent);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+
+.brand { display: flex; align-items: center; gap: 0.45rem; color: var(--ink-2); }
+.brand-glyph { width: 1.25rem; height: 1.25rem; color: var(--temp); }
+.brand-name {
+  font-size: 0.8rem; font-weight: 600;
+  letter-spacing: 0.14em; text-transform: uppercase;
+}
+
+.locpick select {
+  font: inherit; font-size: 0.9rem; font-weight: 600;
+  color: var(--ink); background: var(--surface);
+  border: 1px solid var(--hairline); border-radius: 0.6rem;
+  padding: 0.3rem 0.7rem;
+  max-width: 11rem;
+}
+
+/* ---- layout ---- */
+
+#main {
+  max-width: 40rem; margin: 0 auto;
+  padding: 0.25rem 1rem calc(4.6rem + env(safe-area-inset-bottom));
+}
+
+.view { padding-top: 0.5rem; }
+
+.eyebrow {
+  font-size: 0.7rem; font-weight: 600; color: var(--muted);
+  letter-spacing: 0.09em; text-transform: uppercase;
+  margin: 0.9rem 0 0.5rem;
+}
+
+.panel { margin-top: 0.5rem; }
+
+.placeholder, .empty-state { color: var(--muted); padding: 1.2rem 0; }
+.empty-state strong { color: var(--ink-2); font-weight: 600; }
+
+.updated { font-size: 0.78rem; color: var(--muted); margin: 0.9rem 0 0.2rem; }
+.updated.stale { color: var(--stale); font-weight: 500; }
+
+/* ---- NOW hero ---- */
+
+.hero { padding: 1rem 0 0.4rem; }
+
+.hero-top { display: flex; align-items: flex-start; justify-content: space-between; gap: 0.5rem; }
+
+.hero-temp {
+  font-size: clamp(4.2rem, 21vw, 6.4rem);
+  font-weight: 200; line-height: 1; letter-spacing: -0.02em;
+  font-variant-numeric: normal;
+}
+.hero-temp sup { font-size: 45%; font-weight: 300; vertical-align: 0.7em; }
+
+.hero-icon { width: clamp(3.4rem, 16vw, 4.6rem); height: auto; color: var(--ink-2); flex: none; margin-top: 0.4rem; }
+.hero-icon .ic-sun { color: var(--temp); }
+.hero-icon .ic-rain { color: var(--rain); }
+
+.hero-cond { font-size: 1.2rem; font-weight: 550; margin-top: 0.35rem; }
+.hero-feels { font-size: 0.92rem; color: var(--ink-2); margin-top: 0.1rem; }
+
+/* the horizon rule: the hero sits on it, the next hour hangs from it */
+.hero-stats {
+  display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.5rem;
+  border-top: 1px solid var(--grid);
+  margin-top: 1.1rem; padding-top: 0.8rem;
+}
+.stat .stat-label {
+  font-size: 0.66rem; font-weight: 600; color: var(--muted);
+  letter-spacing: 0.09em; text-transform: uppercase;
+}
+.stat .stat-value { font-size: 1.02rem; font-weight: 600; margin-top: 0.15rem; }
+.stat .stat-sub { font-size: 0.78rem; color: var(--ink-2); }
+
+/* ---- alert banner (NOW) ---- */
+
+.alert-banner {
+  display: block; text-decoration: none;
+  border-left: 4px solid var(--sev-minor-edge);
+  background: var(--sev-minor-wash);
+  border-radius: 0.55rem;
+  padding: 0.6rem 0.8rem;
+  margin-top: 0.6rem;
+  color: var(--ink);
+}
+.alert-banner .ab-event { font-weight: 700; font-size: 0.95rem; }
+.alert-banner .ab-meta { font-size: 0.8rem; color: var(--ink-2); margin-top: 0.1rem; }
+.alert-banner.sev-extreme { border-left-color: var(--sev-extreme-edge); background: var(--sev-extreme-wash); }
+.alert-banner.sev-extreme .ab-event { color: var(--sev-extreme); }
+.alert-banner.sev-severe { border-left-color: var(--sev-severe-edge); background: var(--sev-severe-wash); }
+.alert-banner.sev-severe .ab-event { color: var(--sev-severe); }
+.alert-banner.sev-moderate { border-left-color: var(--sev-moderate-edge); background: var(--sev-moderate-wash); }
+.alert-banner.sev-moderate .ab-event { color: var(--sev-moderate); }
+
+/* ---- burn window chips (NOW hero + DAILY outlook) ---- */
+
+.burn-chip {
+  display: inline-flex; align-items: center; gap: 0.42rem;
+  font: inherit; font-size: 0.75rem; font-weight: 700;
+  letter-spacing: 0.08em; text-transform: uppercase;
+  padding: 0.3rem 0.75rem; margin-top: 0.6rem;
+  border-radius: 1rem; cursor: pointer;
+  color: var(--ink-2); background: var(--surface);
+  border: 1px solid var(--hairline);
+}
+.burn-chip .burn-dot {
+  width: 0.55rem; height: 0.55rem; border-radius: 50%;
+  background: currentColor; flex: none;
+}
+/* verdict hues ride the wind burn-safety gradient tokens */
+.burn-chip.burn-go, .burn-day-chip.burn-go {
+  color: var(--w-safe);
+  border-color: color-mix(in srgb, var(--w-safe) 45%, transparent);
+  background: color-mix(in srgb, var(--w-safe) 12%, transparent);
+}
+.burn-chip.burn-caution, .burn-day-chip.burn-caution {
+  color: var(--w-warn);
+  border-color: color-mix(in srgb, var(--w-warn) 45%, transparent);
+  background: color-mix(in srgb, var(--w-warn) 12%, transparent);
+}
+.burn-chip.burn-no_burn, .burn-day-chip.burn-no_burn {
+  color: var(--w-danger);
+  border-color: color-mix(in srgb, var(--w-danger) 45%, transparent);
+  background: color-mix(in srgb, var(--w-danger) 14%, transparent);
+}
+.burn-chip .burn-stale-tag {
+  font-size: 0.62rem; font-weight: 600; letter-spacing: 0.06em;
+  text-transform: lowercase; color: var(--stale);
+}
+.burn-chip:focus-visible, .burn-day-chip:focus-visible { outline: 2px solid var(--rain); outline-offset: 2px; }
+
+.burn-detail, .burn-day-detail {
+  margin-top: 0.45rem; padding: 0.6rem 0.8rem;
+  background: var(--surface);
+  border: 1px solid var(--hairline); border-radius: 0.55rem;
+  font-size: 0.85rem; color: var(--ink-2);
+}
+.burn-detail .burn-reasons, .burn-day-detail .burn-reasons { margin: 0; padding-left: 1.05rem; }
+.burn-detail .burn-reasons li, .burn-day-detail .burn-reasons li { margin: 0.1rem 0; }
+.burn-detail .burn-hint { margin-top: 0.35rem; }
+.burn-day-detail .burn-note { margin-top: 0.35rem; font-size: 0.78rem; color: var(--muted); }
+.burn-day-detail .burn-note.stale-note { color: var(--stale); }
+.burn-detail .burn-disclaimer, .burn-day-detail .burn-disclaimer {
+  margin-top: 0.45rem; padding-top: 0.45rem;
+  border-top: 1px solid var(--grid);
+  font-size: 0.72rem; color: var(--muted);
+}
+
+/* DAILY outlook chips: a 7th grid column appears when the outlook serves
+   (default location only); low-confidence chips wear the far-day dimming */
+.burn-day-chip {
+  font: inherit; font-size: 0.6rem; font-weight: 700;
+  letter-spacing: 0.05em; text-transform: uppercase;
+  padding: 0.18rem 0.5rem; border-radius: 1rem;
+  cursor: pointer; white-space: nowrap; justify-self: end;
+  color: var(--ink-2); background: var(--surface);
+  border: 1px solid var(--hairline);
+}
+.burn-day-chip.low-conf { opacity: 0.55; }
+.burn-day-detail { margin-top: 0; margin-bottom: 0.55rem; }
+
+/* ---- nowcast strip ---- */
+
+.nowcast svg { width: 100%; height: auto; display: block; }
+.nowcast-summary { font-size: 0.88rem; color: var(--ink-2); margin-top: 0.3rem; }
+
+/* ---- charts (SVG classes; marks wear tokens, text wears text tokens) ---- */
+
+.chart-scroll {
+  position: relative;
+  overflow-x: auto; overflow-y: hidden;
+  -webkit-overflow-scrolling: touch;
+  border-radius: 0.6rem;
+  background: var(--surface);
+  border: 1px solid var(--hairline);
+}
+.chart-scroll svg { display: block; }
+
+svg.chart text {
+  font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+  font-size: 10px; fill: var(--muted);
+}
+svg.chart .c-lane { font-size: 9.5px; letter-spacing: 0.08em; }
+svg.chart .c-grid { stroke: var(--grid); stroke-width: 1; }
+svg.chart .c-base { stroke: var(--baseline); stroke-width: 1; }
+svg.chart .c-day { stroke: var(--grid); stroke-width: 1; }
+/* the temp line's stroke is the temp-grad url; only stops are themed here */
+svg.chart .c-temp { stroke-width: 2; fill: none;
+                    stroke-linecap: round; stroke-linejoin: round; }
+svg.chart .g-hot2 { stop-color: var(--t-hot2); }
+svg.chart .g-hot { stop-color: var(--t-hot); }
+svg.chart .g-warm { stop-color: var(--t-warm); }
+svg.chart .g-mild { stop-color: var(--t-mild); }
+svg.chart .g-cool { stop-color: var(--t-cool); }
+svg.chart .g-cold { stop-color: var(--t-cold); }
+/* wind: thin line under the temp line, wind-grad stroke; burn-safety stops */
+svg.chart .c-wind { stroke-width: 1.2; fill: none;
+                    stroke-linecap: round; stroke-linejoin: round; }
+svg.chart .c-gustband { fill: var(--gust-band); }
+svg.chart .w-safe { stop-color: var(--w-safe); }
+svg.chart .w-caution { stop-color: var(--w-caution); }
+svg.chart .w-warn { stop-color: var(--w-warn); }
+svg.chart .w-danger { stop-color: var(--w-danger); }
+svg.chart .w-danger2 { stop-color: var(--w-danger2); }
+svg.chart .c-temp-dot { fill: var(--temp); stroke: var(--surface); stroke-width: 2; }
+svg.chart .c-vlabel { fill: var(--ink-2); font-weight: 600; font-size: 10.5px; }
+svg.chart .c-vlabel-now { fill: var(--ink); font-weight: 700; font-size: 11.5px; }
+svg.chart .c-rain { fill: var(--rain); }
+svg.chart .c-rainbar { fill: var(--rain-bar); }
+svg.chart .c-stub { fill: var(--baseline); }
+svg.chart .c-daylbl { fill: var(--ink-2); font-weight: 650; }
+
+.chart-cursor {
+  position: absolute; top: 8px; width: 1px;
+  background: var(--baseline); pointer-events: none; display: none;
+}
+.chart-tip {
+  position: absolute; z-index: 5; pointer-events: none; display: none;
+  background: var(--surface); color: var(--ink);
+  border: 1px solid var(--hairline); border-radius: 0.5rem;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.18);
+  font-size: 0.78rem; line-height: 1.35;
+  padding: 0.35rem 0.55rem; white-space: nowrap;
+}
+.chart-tip .tt-t { font-weight: 700; }
+
+.table-view { margin-top: 0.6rem; }
+.table-view summary { font-size: 0.8rem; color: var(--muted); cursor: pointer; }
+.table-view table {
+  width: 100%; border-collapse: collapse; margin-top: 0.5rem;
+  font-size: 0.8rem; font-variant-numeric: tabular-nums;
+}
+.table-view th {
+  text-align: right; font-weight: 600; color: var(--muted);
+  border-bottom: 1px solid var(--grid); padding: 0.25rem 0.4rem;
+}
+.table-view th:first-child, .table-view td:first-child { text-align: left; }
+.table-view td { text-align: right; padding: 0.22rem 0.4rem; border-bottom: 1px solid var(--grid); color: var(--ink-2); }
+/* data-bar cells: horizontal tint from the left, width set inline as
+   background-size X% (temp 0..110, chance 0..100, wind 0..40 mph);
+   text stays on top, layout unmoved */
+.table-view td.precip-cell, .table-view td.wind-cell, .table-view td.temp-cell {
+  background-image: linear-gradient(var(--cell-tint, transparent), var(--cell-tint, transparent));
+  background-repeat: no-repeat;
+  background-size: 0% 100%;
+}
+.table-view td.precip-cell { --cell-tint: var(--rain-bar); }
+.table-view td.wind-cell { --cell-tint: var(--wind-bar); }
+/* temp tint: the line gradient's nearest anchor color, washed out */
+.table-view td.t-hot2 { --cell-tint: color-mix(in srgb, var(--t-hot2) 18%, transparent); }
+.table-view td.t-hot { --cell-tint: color-mix(in srgb, var(--t-hot) 18%, transparent); }
+.table-view td.t-warm { --cell-tint: color-mix(in srgb, var(--t-warm) 18%, transparent); }
+.table-view td.t-mild { --cell-tint: color-mix(in srgb, var(--t-mild) 18%, transparent); }
+.table-view td.t-cool { --cell-tint: color-mix(in srgb, var(--t-cool) 18%, transparent); }
+.table-view td.t-cold { --cell-tint: color-mix(in srgb, var(--t-cold) 18%, transparent); }
+
+/* ---- daily list ---- */
+
+.daily { margin-top: 0.2rem; }
+
+.day-row {
+  display: grid;
+  grid-template-columns: 3.2rem 2rem 3.1rem 2.4rem 1fr 2.4rem;
+  gap: 0.55rem; align-items: center;
+  padding: 0.55rem 0;
+  border-bottom: 1px solid var(--grid);
+}
+/* with burn outlook chips (default location), rows carry a 7th column */
+.daily.has-burn .day-row {
+  grid-template-columns: 3.2rem 2rem 2.6rem 2.2rem 1fr 2.2rem auto;
+  gap: 0.45rem;
+}
+.day-row:last-child { border-bottom: none; }
+.day-name { font-weight: 600; font-size: 0.92rem; }
+.day-name .day-date { display: block; font-weight: 500; font-size: 0.68rem; color: var(--muted); }
+.day-icon { width: 1.5rem; height: 1.5rem; color: var(--ink-2); }
+.day-icon .ic-sun { color: var(--temp); }
+.day-icon .ic-rain { color: var(--rain); }
+.day-precip { font-size: 0.78rem; color: var(--rain); font-weight: 600; font-variant-numeric: tabular-nums; }
+.day-precip.dry { color: var(--muted); font-weight: 500; }
+/* day's rainfall total, second line under the chance ("0.32 in"); rendered
+   only when it rounds above 0.00, always rain blue even on "dry" rows */
+.day-precip .day-rain {
+  display: block; white-space: nowrap;
+  font-size: 0.64rem; font-weight: 500;
+  color: var(--rain);
+}
+.day-lo, .day-hi { font-size: 0.95rem; font-variant-numeric: tabular-nums; text-align: right; }
+.day-lo { color: var(--muted); }
+.day-hi { font-weight: 650; }
+.day-range { width: 100%; height: 0.55rem; display: block; }
+.day-range .r-track { fill: var(--grid); }
+.day-range .r-fill { fill: var(--temp); }
+
+.confidence-divider {
+  display: flex; align-items: center; gap: 0.6rem;
+  margin: 0.55rem 0 0.15rem;
+  font-size: 0.68rem; font-weight: 600; color: var(--muted);
+  letter-spacing: 0.09em; text-transform: uppercase;
+}
+.confidence-divider::before, .confidence-divider::after {
+  content: ""; flex: 1; border-top: 1px solid var(--grid);
+}
+.day-row.low-confidence { opacity: 0.55; }
+
+/* ---- alerts view ---- */
+
+.alert-card {
+  background: var(--surface);
+  border: 1px solid var(--hairline);
+  border-left: 4px solid var(--sev-minor-edge);
+  border-radius: 0.6rem;
+  padding: 0.8rem 0.9rem;
+  margin-bottom: 0.7rem;
+}
+.alert-card.sev-extreme { border-left-color: var(--sev-extreme-edge); }
+.alert-card.sev-severe { border-left-color: var(--sev-severe-edge); }
+.alert-card.sev-moderate { border-left-color: var(--sev-moderate-edge); }
+
+.alert-head { display: flex; align-items: baseline; justify-content: space-between; gap: 0.5rem; flex-wrap: wrap; }
+.alert-event { font-size: 1.05rem; font-weight: 700; }
+.sev-extreme .alert-event { color: var(--sev-extreme); }
+.sev-severe .alert-event { color: var(--sev-severe); }
+.sev-moderate .alert-event { color: var(--sev-moderate); }
+
+.area-chip {
+  font-size: 0.68rem; font-weight: 700;
+  letter-spacing: 0.07em; text-transform: uppercase;
+  padding: 0.14rem 0.5rem; border-radius: 1rem;
+  background: var(--sev-minor-wash); color: var(--ink-2);
+  white-space: nowrap;
+}
+.area-chip.here { background: var(--rain-wash); color: var(--rain); }
+
+.alert-headline { font-size: 0.9rem; color: var(--ink-2); margin-top: 0.3rem; }
+.alert-window { font-size: 0.82rem; color: var(--muted); margin-top: 0.35rem; font-variant-numeric: tabular-nums; }
+.alert-instruction {
+  font-size: 0.88rem; margin-top: 0.5rem;
+  padding-top: 0.5rem; border-top: 1px solid var(--grid);
+}
+
+/* ---- tab bar ---- */
+
+.tabbar {
+  position: fixed; bottom: 0; left: 0; right: 0; z-index: 10;
+  display: flex; justify-content: space-around;
+  max-width: 40rem; margin: 0 auto;
+  padding: 0.35rem 0.4rem calc(0.35rem + env(safe-area-inset-bottom));
+  background: color-mix(in srgb, var(--surface) 92%, transparent);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border-top: 1px solid var(--hairline);
+}
+
+.tab {
+  position: relative;
+  display: flex; flex-direction: column; align-items: center; gap: 0.12rem;
+  flex: 1; padding: 0.28rem 0;
+  color: var(--muted); text-decoration: none;
+  font-size: 0.68rem; font-weight: 600;
+  border-radius: 0.5rem;
+}
+.tab svg { width: 1.35rem; height: 1.35rem; }
+.tab[aria-current="page"] { color: var(--ink); }
+.tab:focus-visible { outline: 2px solid var(--rain); outline-offset: 2px; }
+
+.alert-dot {
+  position: absolute; top: 0.15rem; right: calc(50% - 1.05rem);
+  width: 0.5rem; height: 0.5rem; border-radius: 50%;
+  background: var(--sev-extreme-edge);
+  border: 2px solid var(--surface);
+}
+
+/* ---- radar view ---- */
+
+/* Full-bleed map: the section escapes #main's column by going fixed; the
+   translucent topbar and tabbar float above it (their z-index is 10). */
+.view-radar { position: fixed; inset: 0; z-index: 5; padding: 0; }
+
+.radar-map { position: absolute; inset: 0; background: var(--page); }
+.radar-map .maplibregl-canvas:focus-visible { outline: 2px solid var(--rain); }
+
+/* Basemap-problem banner (missing/corrupt archive) over the map; the
+   detail line names the underlying failure so screenshots are diagnostic */
+.map-notice {
+  position: absolute; left: 50%; transform: translateX(-50%);
+  top: calc(3.4rem + env(safe-area-inset-top));
+  z-index: 6; max-width: min(92%, 26rem); padding: 0.5rem 0.8rem;
+  background: var(--surface); color: var(--ink-2);
+  border: 1px solid var(--stale); border-radius: 0.5rem;
+  font-size: 0.8rem; text-align: center;
+}
+
+.map-notice-detail {
+  margin-top: 0.25rem; font-size: 0.65rem; opacity: 0.65;
+  overflow-wrap: anywhere;
+}
+
+.loc-marker {
+  width: 0.95rem; height: 0.95rem; border-radius: 50%;
+  background: var(--rain);
+  border: 0.16rem solid #fff;
+  box-shadow: 0 0 0 2px rgba(0, 0, 0, 0.28);
+}
+
+.radar-attrib {
+  position: absolute; right: 0.35rem;
+  bottom: calc(3.5rem + env(safe-area-inset-bottom));
+  z-index: 6; pointer-events: none;
+  font-size: 0.6rem; color: var(--muted);
+  background: color-mix(in srgb, var(--page) 72%, transparent);
+  padding: 0.06rem 0.4rem; border-radius: 0.4rem;
+}
+
+/* scrubber: floats above the tabbar, under the attribution line */
+.radar-bar {
+  position: absolute; left: 50%; transform: translateX(-50%);
+  bottom: calc(4.6rem + env(safe-area-inset-bottom));
+  z-index: 6;
+  display: flex; align-items: center; gap: 0.6rem;
+  width: min(92vw, 26rem);
+  padding: 0.45rem 0.7rem;
+  background: color-mix(in srgb, var(--surface) 90%, transparent);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border: 1px solid var(--hairline); border-radius: 0.8rem;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.16);
+}
+.radar-play {
+  flex: none; width: 2.1rem; height: 2.1rem;
+  display: flex; align-items: center; justify-content: center;
+  border: none; border-radius: 50%; cursor: pointer;
+  background: var(--rain-wash); color: var(--rain);
+}
+.radar-play svg { width: 1.15rem; height: 1.15rem; }
+.radar-play:focus-visible { outline: 2px solid var(--rain); outline-offset: 2px; }
+#radarScrub { flex: 1; min-width: 0; accent-color: var(--rain); }
+.radar-time {
+  flex: none; font-size: 0.74rem; color: var(--ink-2);
+  font-variant-numeric: tabular-nums; white-space: nowrap;
+}
+.radar-time.stale { color: var(--stale); font-weight: 500; }
+
+/* alert popup wears the app's surface tokens in both themes */
+.radar-map .maplibregl-popup-content {
+  background: var(--surface); color: var(--ink);
+  border: 1px solid var(--hairline); border-radius: 0.55rem;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.22);
+  padding: 0.55rem 1.5rem 0.55rem 0.75rem;
+  font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+.radar-map .maplibregl-popup-anchor-bottom .maplibregl-popup-tip,
+.radar-map .maplibregl-popup-anchor-bottom-left .maplibregl-popup-tip,
+.radar-map .maplibregl-popup-anchor-bottom-right .maplibregl-popup-tip { border-top-color: var(--surface); }
+.radar-map .maplibregl-popup-anchor-top .maplibregl-popup-tip,
+.radar-map .maplibregl-popup-anchor-top-left .maplibregl-popup-tip,
+.radar-map .maplibregl-popup-anchor-top-right .maplibregl-popup-tip { border-bottom-color: var(--surface); }
+.radar-map .maplibregl-popup-anchor-left .maplibregl-popup-tip { border-right-color: var(--surface); }
+.radar-map .maplibregl-popup-anchor-right .maplibregl-popup-tip { border-left-color: var(--surface); }
+.radar-map .maplibregl-popup-close-button { color: var(--muted); font-size: 1.05rem; right: 0.2rem; top: 0.1rem; }
+.radar-popup strong { font-size: 0.88rem; }
+.radar-popup p { font-size: 0.78rem; color: var(--ink-2); margin-top: 0.25rem; }
+
+/* ---- attribution ---- */
+
+.attribution {
+  margin-top: 1.6rem; padding-top: 0.8rem;
+  border-top: 1px solid var(--grid);
+  font-size: 0.72rem; color: var(--muted); line-height: 1.5;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .tab, .locpick select { transition: color 120ms ease, background 120ms ease; }
+}
