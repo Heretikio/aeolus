@@ -6,7 +6,7 @@ with tiered Slack notifications. Installable phone-first PWA, a JSON API for
 other apps, and Prometheus metrics. One container, free data sources, no
 account required.
 
-Background and design notes: [Build Your Own Weather Service](https://heretik.io/build-your-own-weather-service/).
+Background and design notes: [Build Your Own Weather Service](https://heretik.io/self-hosted-weather-service/).
 
 Core principle: **the cache is the product.** Consumers read only the local
 SQLite store. When an upstream dies, Aeolus serves last-known-good with a
