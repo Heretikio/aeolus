@@ -6,6 +6,8 @@ with tiered Slack notifications. Installable phone-first PWA, a JSON API for
 other apps, and Prometheus metrics. One container, free data sources, no
 account required.
 
+Background and design notes: [Build Your Own Weather Service](https://heretik.io/build-your-own-weather-service/).
+
 Core principle: **the cache is the product.** Consumers read only the local
 SQLite store. When an upstream dies, Aeolus serves last-known-good with a
 `stale` badge, never an error.
@@ -17,6 +19,18 @@ Data sources: Open-Meteo (forecast + nowcast), Pirate Weather (optional
 secondary), NWS api.weather.gov (alerts), IEM (alert watchdog + NEXRAD radar),
 NOAA nowCOAST (radar fallback). Radar and NWS alerts are US-only; forecast and
 nowcast are global.
+
+## Screenshots
+
+<p align="center">
+  <img src="docs/screenshots/now.png"    alt="Current conditions"        width="19%">
+  <img src="docs/screenshots/hourly.png" alt="48-hour hourly forecast"   width="19%">
+  <img src="docs/screenshots/daily.png"  alt="10-day daily forecast"     width="19%">
+  <img src="docs/screenshots/radar.png"  alt="Animated NEXRAD radar"     width="19%">
+  <img src="docs/screenshots/alerts.png" alt="NWS severe-weather alert"  width="19%">
+</p>
+
+<p align="center"><sub>Now &middot; Hourly &middot; Daily &middot; Radar &middot; Alerts</sub></p>
 
 ## Quick start
 
